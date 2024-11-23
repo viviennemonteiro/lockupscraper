@@ -4,13 +4,6 @@ import pandas as pd
 
 # DECLARE FUNCTIONS -----------------------
 
-#reader = PdfReader("LockupList_TEST.pdf")
-#page = reader.pages[6]
-#layout = page.extract_text(extraction_mode="layout")
-
-#with open("Output.txt", "w") as text_file:
-#    text_file.write(layout)
-
 def select_line(text: str, line_number: int):
     '''
     Helper function to select line in a re search function. 
