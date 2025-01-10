@@ -7,6 +7,7 @@ from werkzeug.utils import secure_filename
 
 # decorator for routes that should be accessible only by logged in users
 from auth_decorator import login_required
+from lockup_scraper import *
 
 # dotenv setup
 from dotenv import load_dotenv
@@ -36,7 +37,7 @@ google = oauth.register(
     authorize_params=None,
     api_base_url='https://www.googleapis.com/oauth2/v1/',
     userinfo_endpoint='https://openidconnect.googleapis.com/v1/userinfo',  # This is only needed if using openId to fetch user info
-    client_kwargs={'scope': 'email profile'},
+    client_kwargs={'scope': 'email profile https://www.googleapis.com/auth/spreadsheets'},
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration'
 )
 
@@ -66,6 +67,10 @@ def upload_file():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+            df = scrape_fulldoc(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            
+
             return redirect(url_for('download_file', name=filename))
     return '''
     <!doctype html>
@@ -98,6 +103,7 @@ def authorize():
     # and set ur own data in the session not the profile from google
     session['profile'] = user_info
     session.permanent = True  # make the session permanant so it keeps existing after broweser gets closed
+    
     return redirect('/')
 
 @app.route('/logout')

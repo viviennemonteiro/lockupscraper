@@ -1,6 +1,8 @@
 import re
 from pypdf import PdfReader
 import pandas as pd
+import gspread as gs
+import gspread_dataframe as gd
 
 # DECLARE FUNCTIONS -----------------------
 
@@ -219,6 +221,10 @@ def scrape_fulldoc(pdf):
 
     return df
 
-# MAIN -----------------------
-
-lockup_df = scrape_fulldoc("LockupList_TEST.pdf")
+# Connecting with `gspread` here
+def append_to_sheet(df, sheet_name, worksheet_name):
+    ws = gc.open(sheet_name).worksheet(worksheet_name)
+    ws.add_rows(df.shape[0])
+    gd.set_with_dataframe(worksheet=ws, dataframe=df, include_index=False, include_column_header=False, row=ws.row_count+1, resize=False)
+    print("Appended to Sheet: f{worksheet_name} in {sheet_name}")
+    
