@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="canonical" href="https://html5-templates.com/" />
+    <title>Bootstrap Template</title>
+	<meta name="description" content="A minimalist Bootstrap theme by StartBootstrap. Contains everything you need to get started building your website. All you have to do is change the text and images.">
+    <link href="static/css/bootstrap.min.css" rel="stylesheet">
+    <link href="static/css/modern-business.css" rel="stylesheet">
+    <link href="static/font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+    <style>
+        .underline-on-hover:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+        <div class="container">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="index.html">Lock Up Scraper</a>
+            </div>
+            <!-- Collect the nav links, forms, and other content for toggling -->
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a href="index.html">Upload</a>
+                    </li>
+                    <li>
+                        <a href="services.html">Code</a>
+                    </li>
+                    <li>
+                        <a onclick="log_in()" id="auth_status">Log In</a>
+                    </li>
+                </ul>
+            </div>
+            <!-- /.navbar-collapse -->
+        </div>
+        <!-- /.container -->
+    </nav>
+
+    <!-- Page Content -->
+    <div class="container">
+
+        <!-- Marketing Icons Section -->
+        <div class="row">
+            <div class="col-lg-12">
+                <h1 class="page-header">
+                    TEMPOROIAKL:SDJ:OAWIJD
+                </h1>
+            </div>
+            <div class="col-md-4">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h4><i class="fa fa-regular fa-file"></i> Upload Lock Up List</h4>
+                    </div>
+                    <div class="panel-body">
+                        <form method="post">
+                            <a class="btn btn-lg btn-primary btn-block" onclick="open_file_dialog()">Select File</a>
+                          </form>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h4><i class="fa fa-solid fa-table"></i> Choose Spreadsheet</h4>
+                    </div>
+                    <div class="panel-body">
+                        <input id="searchbar" onkeyup="search_animal()" type="text" name="search">
+                        <ul id="list-holder"></ul>
+                        <p id="test_list"></p>
+                        <a href="#" class="btn btn-default">Upload</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h4><i class="fa fa-solid fa-upload"></i> Data </h4>
+                    </div>
+                    <div class="panel-body">
+                        <form method="post">
+                            <a class="btn btn-lg btn-primary" onclick="pywebview.api.go_upload()">GO</a>
+                          </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="row">
+            <div class="col-lg-12">
+                <h2 class="page-header">How to Upload a Lock Up List:</h2>
+            </div>
+            <div class="col-md-12">
+                <p>Upload steps:</p>
+                <ul>
+                    <li>Add this email, <span class="underline-on-hover" onclick="email_copy()"><strong>upload@cwdc-lockup-scrape.iam.gserviceaccount.com <i class="fa fa-solid fa-copy"></i></strong></span>, as an editor of the sheet.</li>
+                    <li>Select lock up list files</li>
+                    <li>Choose a spreadsheet to add data to</li>
+                    <li>Hit GO to append new data to the sheet</li>
+                </ul>
+                <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Corporis, omnis doloremque non cum id reprehenderit, quisquam totam aspernatur tempora minima unde aliquid ea culpa sunt. Reiciendis quia dolorum ducimus unde.</p>
+            </div>
+        </div>
+        <!-- /.row -->
+
+        <hr>
+
+        <!-- Footer -->
+        <footer>
+            <div class="row">
+                <div class="col-lg-12">
+                    <p>Copyright &copy; Your Website, year | <a href="https://html5-templates.com/" target="_blank" rel="nofollow">HTML5 Templates</a></p>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+    <!-- jQuery -->
+    <script src="js/jquery.js"></script>
+
+    <script>
+        function email_copy() {
+            navigator.clipboard.writeText("upload@cwdc-lockup-scrape.iam.gserviceaccount.com");
+            alert("Copied: upload@cwdc-lockup-scrape.iam.gserviceaccount.com");
+        }
+        
+        function readJson() {
+            fetch('drive_search.json').then(response => {
+                if (!response.ok) {
+                    throw new Error("HTTP error " + response.status);
+                }
+                return response.json();
+            })
+            .then(json => {
+                this.users = json;
+                //console.log(this.users);
+            })
+            .catch(function () {
+                this.dataError = true;
+            })
+        }
+
+        let data = readJson()
+
+        function search_animal() {
+            let input = document.getElementById('searchbar').value
+            input = input.toLowerCase();
+            let x = document.querySelector('#list-holder');
+            x.innerHTML = ""
+
+            for (i = 0; i < data.length; i++) {
+                let obj = data[i];
+
+                if (obj.Name.toLowerCase().includes(input)) {
+                    const elem = document.createElement("li")
+                    elem.innerHTML = `${obj.Name} - ${obj.Color}`
+                    x.appendChild(elem)
+                    }
+            }
+        }
+
+        function log_in() {
+            var container = document.getElementById('auth_status')
+
+            pywebview.api.google_auth()
+            
+            container.innerHTML = 'Log Out'
+            container.onclick = log_out
+        }
+
+        function log_out() {
+            var container = document.getElementById('auth_status')
+            
+            pywebview.api.google_deauth()
+            container.innerHTML = 'Log In'
+            container.onclick = log_in
+        }
+
+        function open_file_dialog() {
+            
+            pywebview.api.open_file_dialog()
+        }
+    </script>
+
+</body>
+
+</html>

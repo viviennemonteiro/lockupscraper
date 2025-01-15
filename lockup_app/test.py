@@ -2,30 +2,31 @@ import gspread as gs
 import webview
 import os
 import lockup_scraper
+import json
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from json import dumps
+
 
 class Api():  
     def __init__(self):
-        self.service_account = 'lockup_app/credential/service_account_credentials.json'
-        self.gc = gs.service_account(filename='lockup_app/credential/service_account_credentials.json')
+        self.service_account = 'credential/service_account_credentials.json'
+        self.gc = gs.service_account(filename=self.service_account)
         self.files = None
         self.gid = None
     
     def google_auth(self, method = "service_account"):
         if method == "service_account":
-            self.gc = gs.service_account(filename='lockup_app/credential/service_account_credentials.json')
+            self.gc = gs.service_account(filename=self.service_account)
         elif method == "oauth":
             self.gc = gs.oauth(
-                credentials_filename='lockup_app/credential/oauth_credentials.json',
-                authorized_user_filename='lockup_app/credential/authorized_user.json'
+                credentials_filename='credential/oauth_credentials.json',
+                authorized_user_filename='credential/authorized_user.json'
             )
 
     def google_deauth(self):
-        if os.path.exists('lockup_app/credential/authorized_user.json'):
-            os.remove('lockup_app/credential/authorized_user.json')  
+        if os.path.exists('credential/authorized_user.json'):
+            os.remove('credential/authorized_user.json')  
             self.gc = None
         else:
             print("No auth to delete")
@@ -80,27 +81,7 @@ class Api():
             print(f"An error occurred: {error}")
             files = None
 
-        result = {"data": dumps(files)}
-        print(result)
-        return result
-    
-    def test_jsonstr(self):
-        response = {"data": "TEST STRING"}
-        #response = {"data": "[{'Name': 'Lion', 'Color': 'Yellow'}, {'Name': 'Monkey', 'Color': 'Orange'}, {'Name': 'Fish', 'Color': 'Blue'}, {'Name': 'Cat', 'Color': 'Black'}]"}
-        print(response["data"])
-        return response
-    
-if __name__ == '__main__':
-    api = Api()
-    window = webview.create_window('App', 'index.html', js_api=api)
+        with open("drive_search.json", "w") as outfile:
+            json.dump(files, outfile)
 
-    window.events.closed += api.google_deauth
-
-    webview.start(icon="static/ida_b_free_data.png")
-
-#TODO create functionality to select sheet
-#TODO add create sheet function
-#TODO test multiple pdf's at once
-#TODO add ready indicator; tests after each previous step
-#TODO comment and add docstrings
-#TODO add screen to give time for the app shit to load to fix the bug of needing to restart
+api = Api()
