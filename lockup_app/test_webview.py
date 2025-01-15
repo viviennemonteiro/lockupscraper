@@ -9,23 +9,23 @@ from json import dumps
 
 class Api():  
     def __init__(self):
-        self.service_account = 'lockup_app/credential/service_account_credentials.json'
-        self.gc = gs.service_account(filename='lockup_app/credential/service_account_credentials.json')
+        self.service_account = 'lockup_app/credentials/service_account_credentials.json'
+        self.gc = gs.service_account(filename='lockup_app/credentials/service_account_credentials.json')
         self.files = None
         self.gid = None
     
     def google_auth(self, method = "service_account"):
         if method == "service_account":
-            self.gc = gs.service_account(filename='lockup_app/credential/service_account_credentials.json')
+            self.gc = gs.service_account(filename='lockup_app/credentials/service_account_credentials.json')
         elif method == "oauth":
             self.gc = gs.oauth(
-                credentials_filename='lockup_app/credential/oauth_credentials.json',
-                authorized_user_filename='lockup_app/credential/authorized_user.json'
+                credentials_filename='lockup_app/credentials/oauth_credentials.json',
+                authorized_user_filename='lockup_app/credentials/authorized_user.json'
             )
 
     def google_deauth(self):
-        if os.path.exists('lockup_app/credential/authorized_user.json'):
-            os.remove('lockup_app/credential/authorized_user.json')  
+        if os.path.exists('lockup_app/credentials/authorized_user.json'):
+            os.remove('lockup_app/credentials/authorized_user.json')  
             self.gc = None
         else:
             print("No auth to delete")
@@ -39,7 +39,7 @@ class Api():
         print(result)
         self.files = result
 
-    def go_upload(self):
+    def go_extract(self):
         print(self.files)
         for doc in self.files:
             df = lockup_scraper.scrape_fulldoc(doc)
@@ -74,31 +74,28 @@ class Api():
                 files.extend(response.get("files", []))
                 page_token = response.get("nextPageToken", None)
                 if page_token is None:
+                    #write to file
+                    json_str = dumps(files)
+                    js_code = f"let json_data = `{json_str}`"
+
+                    with open("lockup_app/drive_search.js", "w+") as outfile:
+                        outfile.write(js_code)
                     break
 
         except HttpError as error:
             print(f"An error occurred: {error}")
             files = None
 
-        result = {"data": dumps(files)}
-        print(result)
-        return result
-    
-    def test_jsonstr(self):
-        response = {"data": "TEST STRING"}
-        #response = {"data": "[{'Name': 'Lion', 'Color': 'Yellow'}, {'Name': 'Monkey', 'Color': 'Orange'}, {'Name': 'Fish', 'Color': 'Blue'}, {'Name': 'Cat', 'Color': 'Black'}]"}
-        print(response["data"])
-        return response
-    
 if __name__ == '__main__':
     api = Api()
     window = webview.create_window('App', 'index.html', js_api=api)
 
     window.events.closed += api.google_deauth
 
-    webview.start(icon="static/ida_b_free_data.png")
+    webview.start(api.search_file, icon="static/ida_b_free_data.png")
 
 #TODO create functionality to select sheet
+#TODO show file name
 #TODO add create sheet function
 #TODO test multiple pdf's at once
 #TODO add ready indicator; tests after each previous step

@@ -14,6 +14,37 @@
         .underline-on-hover:hover {
             text-decoration: underline;
         }
+        #searchbar {
+        background-image: url('static/css/searchicon.png'); /* Add a search icon to input */
+        background-position: 10px 12px; /* Position the search icon */
+        background-repeat: no-repeat; /* Do not repeat the icon image */
+        width: 100%; /* Full-width */
+        font-size: 16px; /* Increase font-size */
+        padding: 12px 20px 12px 40px; /* Add some padding */
+        border: 1px solid #ddd; /* Add a grey border */
+        margin-bottom: 12px; /* Add some space below the input */
+        }
+
+        #list-holder {
+        /* Remove default list styling */
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+        }
+
+        #list-holder li {
+        border: 1px solid #ddd; /* Add a border to all links */
+        margin-top: -1px; /* Prevent double borders */
+        background-color: #f6f6f6; /* Grey background color */
+        padding: 12px; /* Add some padding */
+        font-size: 14px; /* Increase the font-size */
+        color: black; /* Add a black text color */
+        display: block; /* Make it into a block element to fill the whole list */
+        }
+
+        #list-holder li a:hover:not(.header) {
+        background-color: #eee; /* Add a hover effect to all links, except for headers */
+        }
     </style>
 </head>
 
@@ -57,7 +88,7 @@
         <div class="row">
             <div class="col-lg-12">
                 <h1 class="page-header">
-                    TEMPOROIAKL:SDJ:OAWIJD
+                    TEMP TITLE
                 </h1>
             </div>
             <div class="col-md-4">
@@ -78,9 +109,8 @@
                         <h4><i class="fa fa-solid fa-table"></i> Choose Spreadsheet</h4>
                     </div>
                     <div class="panel-body">
-                        <input id="searchbar" onkeyup="search_animal()" type="text" name="search">
+                        <input id="searchbar" onkeyup="search_files()" type="text" name="search">
                         <ul id="list-holder"></ul>
-                        <p id="test_list"></p>
                         <a href="#" class="btn btn-default">Upload</a>
                     </div>
                 </div>
@@ -92,7 +122,7 @@
                     </div>
                     <div class="panel-body">
                         <form method="post">
-                            <a class="btn btn-lg btn-primary" onclick="pywebview.api.go_upload()">GO</a>
+                            <a class="btn btn-lg btn-primary" onclick="pywebview.api.go_extract()">GO</a>
                           </form>
                     </div>
                 </div>
@@ -129,47 +159,39 @@
         </footer>
 
     </div>
-    <!-- jQuery -->
-    <script src="js/jquery.js"></script>
 
+    <script src="js/jquery.js"></script>
+    <script type="text/javascript" src="drive_search.js"></script>
     <script>
         function email_copy() {
             navigator.clipboard.writeText("upload@cwdc-lockup-scrape.iam.gserviceaccount.com");
             alert("Copied: upload@cwdc-lockup-scrape.iam.gserviceaccount.com");
         }
-        
-        function readJson() {
-            fetch('drive_search.json').then(response => {
-                if (!response.ok) {
-                    throw new Error("HTTP error " + response.status);
-                }
-                return response.json();
-            })
-            .then(json => {
-                this.users = json;
-                //console.log(this.users);
-            })
-            .catch(function () {
-                this.dataError = true;
-            })
-        }
 
-        let data = readJson()
+        let data = JSON.parse(json_data)
 
-        function search_animal() {
+        function search_files() {
             let input = document.getElementById('searchbar').value
             input = input.toLowerCase();
             let x = document.querySelector('#list-holder');
             x.innerHTML = ""
 
+              // Loop through all list items, and hide those who don't match the search query
             for (i = 0; i < data.length; i++) {
                 let obj = data[i];
-
-                if (obj.Name.toLowerCase().includes(input)) {
+                txtValue = obj.name || obj.id;
+                
+                if (input == "") {
+                    x.innerHTML = "";
+                } else if (txtValue.toLowerCase().indexOf(input) > -1) {
                     const elem = document.createElement("li")
-                    elem.innerHTML = `${obj.Name} - ${obj.Color}`
+                    elem.innerHTML = `${obj.name} - ${obj.id}`
                     x.appendChild(elem)
-                    }
+                } else {
+                    const elem = document.createElement("li")
+                    elem.innerHTML = "No sheets found";
+                    x.appendChild(elem)
+                }
             }
         }
 
