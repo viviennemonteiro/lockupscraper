@@ -1,5 +1,6 @@
 import gspread as gs
 import webview
+from webview import JavascriptException
 import os
 import lockup_scraper
 from google.oauth2 import service_account
@@ -11,9 +12,12 @@ class Api():
     def __init__(self):
         self.service_account = 'lockup_app/credentials/service_account_credentials.json'
         self.gc = gs.service_account(filename='lockup_app/credentials/service_account_credentials.json')
-        self.files = None
+        self.lockup_list = None
         self.gid = None
     
+    def log(self, message):
+        print(message)
+
     def google_auth(self, method = "service_account"):
         if method == "service_account":
             self.gc = gs.service_account(filename='lockup_app/credentials/service_account_credentials.json')
@@ -32,18 +36,30 @@ class Api():
 
     def open_file_dialog(self):
         file_types = ('PDF Files (*.pdf)', 'All files (*.*)')
-
         result = window.create_file_dialog(
-            webview.OPEN_DIALOG, allow_multiple=False, file_types=file_types
+            webview.OPEN_DIALOG, allow_multiple=True, file_types=file_types
         )
         print(result)
-        self.files = result
+        self.lockup_list = list(result)
+        
+        display = window.evaluate_js(f"""
+                                    document.getElementById('file_display').innerHTML = '{", ".join(result)}'
+                                    is_lockup_selected = true
+                                    check_ready()""")
+        print(display)
 
-    def go_extract(self):
-        print(self.files)
-        for doc in self.files:
+    def go_extract(self, gid):
+        for doc in self.lockup_list:
             df = lockup_scraper.scrape_fulldoc(doc)
-            lockup_scraper.append_to_sheet(self.gc, df, "test sheet", "test tab")
+            lockup_scraper.append_to_sheet(self.gc, df, gid)
+        display = window.evaluate_js("""
+                                     document.getElementById('done_flag').innerHTML = 'DONE!!!'
+                                     document.getElementById("ready").innerHTML = "Not Ready"
+                                     is_lockup_selected = false
+                                     """)
+        self.lockup_list = None
+        print(display)
+
 
     def search_file(self):
         """
@@ -92,12 +108,8 @@ if __name__ == '__main__':
 
     window.events.closed += api.google_deauth
 
-    webview.start(api.search_file, icon="static/ida_b_free_data.png")
+    webview.start(api.search_file, icon="static/ida_b_free_data.png", debug=True)
 
-#TODO create functionality to select sheet
-#TODO show file name
 #TODO add create sheet function
-#TODO test multiple pdf's at once
-#TODO add ready indicator; tests after each previous step
 #TODO comment and add docstrings
 #TODO add screen to give time for the app shit to load to fix the bug of needing to restart

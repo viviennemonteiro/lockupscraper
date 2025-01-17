@@ -22,7 +22,11 @@
         font-size: 16px; /* Increase font-size */
         padding: 12px 20px 12px 40px; /* Add some padding */
         border: 1px solid #ddd; /* Add a grey border */
-        margin-bottom: 12px; /* Add some space below the input */
+        margin-bottom: 2px; /* Add some space below the input */
+        }
+
+        .bold-input {
+        font-weight: bold;
         }
 
         #list-holder {
@@ -34,16 +38,29 @@
 
         #list-holder li {
         border: 1px solid #ddd; /* Add a border to all links */
-        margin-top: -1px; /* Prevent double borders */
+        margin-top: 0px; /* Prevent double borders */
         background-color: #f6f6f6; /* Grey background color */
         padding: 12px; /* Add some padding */
-        font-size: 14px; /* Increase the font-size */
+        font-size: 18x; /* Increase the font-size */
         color: black; /* Add a black text color */
         display: block; /* Make it into a block element to fill the whole list */
         }
 
-        #list-holder li a:hover:not(.header) {
+        #list-holder li:hover:not(.header) {
         background-color: #eee; /* Add a hover effect to all links, except for headers */
+        }
+
+        #ready {
+        font-weight: bold;
+        }
+
+        .inline-block-child {
+        display: inline-block;
+        }
+
+        .float-child {
+        float: left;
+        font-size: 24x;
         }
     </style>
 </head>
@@ -88,16 +105,17 @@
         <div class="row">
             <div class="col-lg-12">
                 <h1 class="page-header">
-                    TEMP TITLE
+                    ADD LOCK UP LIST DATA
                 </h1>
             </div>
             <div class="col-md-4">
                 <div class="panel panel-default">
                     <div class="panel-heading">
-                        <h4><i class="fa fa-regular fa-file"></i> Upload Lock Up List</h4>
+                        <h4><i class="fa fa-regular fa-file"></i> Upload Lock Up Lists</h4>
                     </div>
                     <div class="panel-body">
                         <form method="post">
+                            <p id="file_display">No file selected</p>
                             <a class="btn btn-lg btn-primary btn-block" onclick="open_file_dialog()">Select File</a>
                           </form>
                     </div>
@@ -111,19 +129,20 @@
                     <div class="panel-body">
                         <input id="searchbar" onkeyup="search_files()" type="text" name="search">
                         <ul id="list-holder"></ul>
-                        <a href="#" class="btn btn-default">Upload</a>
                     </div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="panel panel-default">
                     <div class="panel-heading">
-                        <h4><i class="fa fa-solid fa-upload"></i> Data </h4>
+                        <h4><i class="fa fa-solid fa-upload"></i> Upload Data </h4>
                     </div>
                     <div class="panel-body">
+                        <div id="ready" class="inline-block-child" style="color:#d81b1e;">Not Ready</div>
                         <form method="post">
-                            <a class="btn btn-lg btn-primary" onclick="pywebview.api.go_extract()">GO</a>
+                            <a class="btn btn-lg btn-primary inline-block-child" onclick="go_extract()">GO</a>
                           </form>
+                          <div id="done_flag" class="inline-block-child"></div>
                     </div>
                 </div>
             </div>
@@ -168,7 +187,9 @@
             alert("Copied: upload@cwdc-lockup-scrape.iam.gserviceaccount.com");
         }
 
-        let data = JSON.parse(json_data)
+        let data = JSON.parse(json_data); 
+        let selected_sheet = null;
+        let is_lockup_selected = null; 
 
         function search_files() {
             let input = document.getElementById('searchbar').value
@@ -181,18 +202,56 @@
                 let obj = data[i];
                 txtValue = obj.name || obj.id;
                 
-                if (input == "") {
+                if (input == "") { // if no input
                     x.innerHTML = "";
-                } else if (txtValue.toLowerCase().indexOf(input) > -1) {
+                } else if (txtValue.toLowerCase().indexOf(input) > -1) { // if input includes a sheet name
+                        const elem = document.createElement("li")
+                        elem.innerHTML = `${obj.name}`
+                        elem.id = `${obj.id}`
+                        elem.addEventListener('click', select_sheet);
+                        x.appendChild(elem)
+                } else { // if input is not in drive results
                     const elem = document.createElement("li")
-                    elem.innerHTML = `${obj.name} - ${obj.id}`
-                    x.appendChild(elem)
-                } else {
-                    const elem = document.createElement("li")
-                    elem.innerHTML = "No sheets found";
+                    elem.innerHTML = "No sheets found (double check the sheet is shared with the email below)";
                     x.appendChild(elem)
                 }
             }
+        }
+
+        function select_sheet(event) {
+            const clicked = event.target;
+            selected_sheet = clicked.id;
+
+            document.getElementById('searchbar').value = clicked.innerHTML;
+            document.querySelector('#list-holder').innerHTML = "";
+
+            let inputElement = document.getElementById('searchbar');
+
+            inputElement.classList.add("bold-input");
+            
+            check_ready()
+
+            inputElement.addEventListener('input', function(){
+                inputElement.classList.remove("bold-input");
+                selected_sheet = null
+                check_ready()
+            }, {once: true});
+        }
+
+        function check_ready() {
+            let container = document.getElementById("ready")
+
+            if (selected_sheet !== null && is_lockup_selected == true) {
+                container.innerHTML = "Ready"
+                container.style = "color:#62aa23;"
+            } else {
+                container.innerHTML = "Not Ready"
+                container.style = "color:#d81b1e;"
+            }
+        }
+
+        function go_extract() {
+            pywebview.api.go_extract(selected_sheet)
         }
 
         function log_in() {

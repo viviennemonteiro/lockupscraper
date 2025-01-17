@@ -53,7 +53,7 @@ def handle_nulls(scrape_var):
         return "N/A"
 
 
-def scrape_page(page):
+def scrape_page(page, quiet = True):
     '''
     Pulls all information from each lockup block on a lockup sheet page 
     
@@ -69,7 +69,6 @@ def scrape_page(page):
     #loop through all lock up numbers
     for lu in lunum:
         num = int(lu.group('number'))
-        print(f"Pulling LU# {num}")
 
         block = page[lu.start():endpos[num]] 
 
@@ -78,13 +77,10 @@ def scrape_page(page):
         arrest_number = re.search("(?<=     )\d{9}(?=     )", select_line(block, 2)).group()
 
         age = re.search("\d\d(?= year old)", select_line(block, 1)).group()
-        print(f'age: {age}')
 
         gender = handle_nulls(re.search("Male|Female(?= )", select_line(block, 2)))
-        print(f'gender: {gender}')
 
         race = handle_nulls(re.search("(?<=     )White|Black or African-American|Hispanic or Latino(?=[ -])", select_line(block, 2)))
-        print(f"race: {race}")
 
         #names search based on a name regex pattern; falls back searching for everything on between the adjecent columns
         true_name = re.search(r"((?<=     )[A-Za-z.'\- ]+, [A-Za-z.'\-]+(?=     ))|([A-Za-z.'\- ]+, [A-Za-z.'\-]+[ ]?[A-Za-z.'\-]+(?=     ))", select_line(block, 1))
@@ -94,7 +90,6 @@ def scrape_page(page):
         else:
             true_name = re.search(r"(?<=\d{2}\/\d{2}\/\d{4} \d{4})[A-Za-z.'\- ,]+(?=\d\d year old))", select_line(block, 1)).group().strip()
 
-        print(f'true name: {true_name}')
 
         name = re.search(r"((?<=     )[A-Za-z.'\- ]+, [A-Za-z.'\-]+(?=     ))|([A-Za-z.'\- ]+, [A-Za-z.'\-]+[ ]?[A-Za-z.'\-]+(?=     ))", select_line(block, 2))
 
@@ -103,7 +98,6 @@ def scrape_page(page):
         else:
             name = re.search(r"(?<=\d{9})[A-Za-z.'\- ,]+(?=White|Black or African-American|Hispanic or Latino)", select_line(block, 2)).group().strip()
 
-        print(f'name: {name}')
 
         assigned_defense = re.search("(?<=Assigned To: ).+\)", block)
 
@@ -114,7 +108,6 @@ def scrape_page(page):
             assigned_name = "N/A"
             assigned_affiliation = "N/A"
 
-        print(f'attorney: {assigned_name} from {assigned_affiliation}')
 
         arresting_officer = re.search(r"(?P<name>[A-Za-z.'\- ]+, [A-Za-z.'\-]+|(?<=[0-9])[A-Za-z.'\- ]+)(?P<badge>[ 0-9]*)", select_line(block, 3), flags=re.M)
 
@@ -125,16 +118,12 @@ def scrape_page(page):
         else:
             arresting_officer_badge = "N/A"
 
-        print(f'arresting_officer: {arresting_officer_name} {arresting_officer_badge}')
 
         arrest_date = handle_nulls(re.search("\d{2}\/\d{2}\/\d{4} \d{4}", select_line(block, 1)))
-        print(f'arrest date time: {arrest_date}')
 
         charges = re.search("(?<=Release\n)(?s:.)*(?=Assigned To)", block, flags=re.M).group().strip()
-        print(f'charges: {charges}')
 
         prosecutor = re.search("(?<=^)[(USAO)(OAG)(Traffic) &]+(?=     )", select_line(block, 3), flags=re.M).group().strip()
-        print(f'prosecutor: {prosecutor}')
 
         pdid = re.search("[0-9]{6}(?=     |$)", select_line(block, 1), flags=re.M).group()
 
@@ -171,7 +160,21 @@ def scrape_page(page):
         else:
             np_flag = 0
 
-        print("------------------------------------------")
+        if not quiet:
+            print(f"""
+                Pulling LU# {num}...
+                age: {age}
+                gender: {gender}
+                race: {race}
+                true name: {true_name}
+                name: {name}
+                attorney: {assigned_name} from {assigned_affiliation}
+                arresting_officer: {arresting_officer_name} {arresting_officer_badge}
+                arrest date time: {arrest_date}
+                charges: {charges}
+                prosecutor: {prosecutor}
+                ------------------------------------------
+                """)
 
         d.append(
             {
@@ -201,10 +204,11 @@ def scrape_page(page):
         )
 
     df = pd.DataFrame(d)
-    print(df.head(10))
+    if not quiet:
+        print(df.head(10))
     return df
 
-def scrape_fulldoc(pdf):
+def scrape_fulldoc(pdf, quiet = True):
     '''
     Takes PDF and scrapes each page with scrape_page() 
 
@@ -217,13 +221,15 @@ def scrape_fulldoc(pdf):
     for page in read_pdf.pages:
         page_text = page.extract_text(extraction_mode="layout")
 
-        df = pd.concat([df, scrape_page(page_text)])
+        df = pd.concat([df, scrape_page(page_text, quiet)])
 
     return df
 
-#TODO create this function....       def create_new_sheet(creds, )
+#TODO create this function:       def create_new_sheet(creds, )
 
-def append_to_sheet(creds, df, sheet_name, worksheet_name):
-    ws = creds.open(sheet_name).worksheet(worksheet_name)
+def append_to_sheet(creds, df, gid):
+    ws = creds.open_by_key(gid).get_worksheet(0)
     gd.set_with_dataframe(worksheet=ws,dataframe=df,include_index=False,include_column_header=False,row=ws.row_count+1,resize=False)
-    print(f"Appended to Sheet: {worksheet_name} in {sheet_name}")
+    print(f"Appended to Sheet: {gid}")
+
+#TODO need to consider some error handling so that we can get partials blocks
