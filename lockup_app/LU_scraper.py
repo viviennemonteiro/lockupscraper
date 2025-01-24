@@ -1,5 +1,6 @@
 import re
 from pypdf import PdfReader
+from numpy import nan
 import pandas as pd
 import gspread as gs
 import gspread_dataframe as gd
@@ -43,15 +44,34 @@ def get_endpos(page):
 
     return endpos
 
-def handle_nulls(scrape_var):
+def handle_nulls(scrape_var, strip=False):
     '''
-    Handles cases where regex search funds nothing and returns "N/A".
+    Handles cases where regex search funds nothing and returns nan.
     '''
     if scrape_var is not None:
-        return scrape_var.group()
+        if not strip:
+            handled_var = scrape_var.group()
+        else:
+            handled_var = scrape_var.group().strip()
     else:
-        return "N/A"
+        handled_var = nan
+    
+    return handled_var
 
+def normalize_layout(text):
+    '''
+    Some lockup lists contain weird spacing when run through the extract layout. 
+    This function handles doubles spaces between characters. 
+    Minimizing other spacing changes to maintain the usual layout quirks that aid normal regex searches.  
+    '''
+    formatted = re.sub(r'(?<=\w|\d|[,.]) {2}(?=\w|\d)', ' ', text)
+    formatted = re.sub(r'(?<=year)(\s+)(?=old)', ' ', formatted)
+    formatted = re.sub(r'(?<=Black)(\s+)(?=or)', ' ', formatted)
+    formatted = re.sub(r'(?<=Hispanic)(\s+)(?=or)', ' ', formatted)
+    formatted = re.sub(r'(?<=Assigned)(\s+)(?=to)', ' ', formatted)
+    formatted = re.sub(r'(?<=,)(\s+)(?=\w)', ' ', formatted)
+
+    return formatted
 
 def scrape_page(page, quiet = True):
     '''
@@ -68,15 +88,28 @@ def scrape_page(page, quiet = True):
 
     #loop through all lock up numbers
     for lu in lunum:
+        scraper_warnings = nan
+        
         num = int(lu.group('number'))
 
-        block = page[lu.start():endpos[num]] 
+        try:
+            block = page[lu.start():endpos[num]] 
+        except KeyError:
+            print(f"WARNING: Key Error affecting {num+1} LU Block will be skipped")
+            d.append(
+                {
+                    'lockup_number': num+1,
+                    'scraper_warnings': f"KeyError, PDFReader could not find {num+1};"
+                }
+            )
+            
+            block = page[lu.start():endpos[num+1]]
 
         court_date = re.search("\d{2}\/\d{2}\/\d{4}", select_line(block, 3)).group()
 
         arrest_number = re.search("(?<=     )\d{9}(?=     )", select_line(block, 2)).group()
 
-        age = re.search("\d\d(?= year old)", select_line(block, 1)).group()
+        age = handle_nulls(re.search("\d\d(?= year old)", select_line(block, 1)))
 
         gender = handle_nulls(re.search("Male|Female(?= )", select_line(block, 2)))
 
@@ -84,18 +117,18 @@ def scrape_page(page, quiet = True):
 
         #names search based on a name regex pattern; falls back searching for everything on between the adjecent columns
         true_name = re.search(r"((?<=     )[A-Za-z.'\- ]+, [A-Za-z.'\-]+(?=     ))|([A-Za-z.'\- ]+, [A-Za-z.'\-]+[ ]?[A-Za-z.'\-]+(?=     ))", select_line(block, 1))
-
         if true_name is not None:
             true_name = true_name.group().strip()
         else:
-            true_name = re.search(r"(?<=\d{2}\/\d{2}\/\d{4} \d{4})[A-Za-z.'\- ,]+(?=\d\d year old))", select_line(block, 1)).group().strip()
-
+            print("True name fell back to column search")
+            true_name = re.search(r"(?<=\d{2}\/\d{2}\/\d{4} \d{4})[A-Za-z.'\- ,]+(?=\d\d year old)", select_line(block, 1)).group().strip()
 
         name = re.search(r"((?<=     )[A-Za-z.'\- ]+, [A-Za-z.'\-]+(?=     ))|([A-Za-z.'\- ]+, [A-Za-z.'\-]+[ ]?[A-Za-z.'\-]+(?=     ))", select_line(block, 2))
 
         if name is not None:
             name = name.group().strip()
         else:
+            print("Name fell back to column search")
             name = re.search(r"(?<=\d{9})[A-Za-z.'\- ,]+(?=White|Black or African-American|Hispanic or Latino)", select_line(block, 2)).group().strip()
 
 
@@ -105,9 +138,8 @@ def scrape_page(page, quiet = True):
             assigned_name = re.search(".+(?= \()", assigned_defense.group()).group()
             assigned_affiliation = re.search("(?<=\().+(?=\))", assigned_defense.group()).group()
         else:
-            assigned_name = "N/A"
-            assigned_affiliation = "N/A"
-
+            assigned_name = nan
+            assigned_affiliation = nan
 
         arresting_officer = re.search(r"(?P<name>[A-Za-z.'\- ]+, [A-Za-z.'\-]+|(?<=[0-9])[A-Za-z.'\- ]+)(?P<badge>[ 0-9]*)", select_line(block, 3), flags=re.M)
 
@@ -116,20 +148,19 @@ def scrape_page(page, quiet = True):
         if arresting_officer.group("badge") is not None:
             arresting_officer_badge = arresting_officer.group("badge").strip()
         else:
-            arresting_officer_badge = "N/A"
-
+            arresting_officer_badge = nan
 
         arrest_date = handle_nulls(re.search("\d{2}\/\d{2}\/\d{4} \d{4}", select_line(block, 1)))
 
-        charges = re.search("(?<=Release\n)(?s:.)*(?=Assigned To)", block, flags=re.M).group().strip()
+        charges = handle_nulls(re.search("(?<=Release\n)(?s:.)*(?=Assigned To)", block, flags=re.M), strip=True)
 
-        prosecutor = re.search("(?<=^)[(USAO)(OAG)(Traffic) &]+(?=     )", select_line(block, 3), flags=re.M).group().strip()
+        prosecutor = handle_nulls(re.search("(?<=^)[(USAO)(OAG)(Traffic) &]+(?=     )", select_line(block, 3), flags=re.M), strip=True)
 
-        pdid = re.search("[0-9]{6}(?=     |$)", select_line(block, 1), flags=re.M).group()
+        pdid = handle_nulls(re.search("[0-9]{6}(?=     |$)", select_line(block, 1), flags=re.M))
 
-        ccn = re.search("[0-9]{8}(?=     |$)", select_line(block, 2), flags=re.M).group()
+        ccn = handle_nulls(re.search("[0-9]{8}(?=     |$)", select_line(block, 2), flags=re.M))
 
-        codef = handle_nulls(re.search(r"(?<=CODEF )/d{2}", block))
+        codef = handle_nulls(re.search(r"(?<=CODEF )/d{2}|(?<=CODEF)/d{2}", block))
 
         #searches the whole block for multiple flags that can exist anywhere in the block
         dv = re.search("(?<=     )DV(?=     |$)", block, flags=re.M)
@@ -199,7 +230,8 @@ def scrape_page(page, quiet = True):
                 'dv_flag': dv_flag,
                 'si_flag': si_flag,
                 'p_flag': p_flag,
-                'np_flag': np_flag
+                'np_flag': np_flag,
+                'scraper_warnings': scraper_warnings
             }
         )
 
@@ -210,7 +242,7 @@ def scrape_page(page, quiet = True):
 
 def scrape_fulldoc(pdf, quiet = True):
     '''
-    Takes PDF and scrapes each page with scrape_page() 
+    Takes PDF and scrapes each page with scrape_page() and applies additional formatting for standardization
 
     Returns a concatenated DataFrame of all pages
     '''
@@ -219,17 +251,22 @@ def scrape_fulldoc(pdf, quiet = True):
     df = pd.DataFrame()
 
     for page in read_pdf.pages:
-        page_text = page.extract_text(extraction_mode="layout")
+        raw_page_text = page.extract_text(extraction_mode="layout")
 
-        df = pd.concat([df, scrape_page(page_text, quiet)])
+        formatted_page = normalize_layout(raw_page_text)
+
+        df = pd.concat([df, scrape_page(formatted_page, quiet)])
 
     return df
 
-#TODO create this function:       def create_new_sheet(creds, )
+
 
 def append_to_sheet(creds, df, gid):
     ws = creds.open_by_key(gid).get_worksheet(0)
     gd.set_with_dataframe(worksheet=ws,dataframe=df,include_index=False,include_column_header=False,row=ws.row_count+1,resize=False)
     print(f"Appended to Sheet: {gid}")
 
+#TODO create function that creates the base google sheet:       def create_new_sheet(creds, )
 #TODO need to consider some error handling so that we can get partials blocks
+#TODO combine handle_nulls and the re.search into one wrapped function for cleanliness
+#TODO consider making the loop stuff into a class object

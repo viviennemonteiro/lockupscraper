@@ -88,9 +88,9 @@
                     <li>
                         <a href="services.html">Code</a>
                     </li>
-                    <li>
+                    <!--<li>
                         <a onclick="log_in()" id="auth_status">Log In</a>
-                    </li>
+                    </li>-->
                 </ul>
             </div>
             <!-- /.navbar-collapse -->
@@ -128,6 +128,7 @@
                     </div>
                     <div class="panel-body">
                         <input id="searchbar" onkeyup="search_files()" type="text" name="search">
+                        <p style="font-size: 14px;" onclick="search_drive()">Refresh search: <span class="glyphicon">&#xe031;</span></p>
                         <ul id="list-holder"></ul>
                     </div>
                 </div>
@@ -252,6 +253,10 @@
 
         function go_extract() {
             pywebview.api.go_extract(selected_sheet)
+        }
+
+        function search_drive() {
+            pywebview.api.search_drive()
         }
 
         function log_in() {

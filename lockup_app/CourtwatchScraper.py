@@ -1,17 +1,18 @@
+import os
+from json import dumps
+import LU_scraper
 import gspread as gs
 import webview
-from webview import JavascriptException
-import os
-import lockup_scraper
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from json import dumps
+
+
 
 class Api():  
     def __init__(self):
-        self.service_account = 'lockup_app/credentials/service_account_credentials.json'
-        self.gc = gs.service_account(filename='lockup_app/credentials/service_account_credentials.json')
+        self.service_account = 'credentials/service_account_credentials.json'
+        self.gc = gs.service_account(filename='credentials/service_account_credentials.json')
         self.lockup_list = None
         self.gid = None
     
@@ -20,19 +21,26 @@ class Api():
 
     def google_auth(self, method = "service_account"):
         if method == "service_account":
-            self.gc = gs.service_account(filename='lockup_app/credentials/service_account_credentials.json')
+            self.gc = gs.service_account(filename='credentials/service_account_credentials.json')
         elif method == "oauth":
             self.gc = gs.oauth(
-                credentials_filename='lockup_app/credentials/oauth_credentials.json',
-                authorized_user_filename='lockup_app/credentials/authorized_user.json'
+                credentials_filename='credentials/oauth_credentials.json',
+                authorized_user_filename='credentials/authorized_user.json'
             )
 
     def google_deauth(self):
-        if os.path.exists('lockup_app/credentials/authorized_user.json'):
-            os.remove('lockup_app/credentials/authorized_user.json')  
+        if os.path.exists('credentials/authorized_user.json'):
+            os.remove('credentials/authorized_user.json')  
             self.gc = None
         else:
             print("No auth to delete")
+    
+    def delete_search_history(self):
+        if os.path.exists('drive_search.json'):
+            os.remove('drive_search.json')  
+            self.gc = None
+        else:
+            print("No search history to delete")
 
     def open_file_dialog(self):
         file_types = ('PDF Files (*.pdf)', 'All files (*.*)')
@@ -50,8 +58,9 @@ class Api():
 
     def go_extract(self, gid):
         for doc in self.lockup_list:
-            df = lockup_scraper.scrape_fulldoc(doc)
-            lockup_scraper.append_to_sheet(self.gc, df, gid)
+            df = LU_scraper.scrape_fulldoc(doc, quiet=False)
+            LU_scraper.append_to_sheet(self.gc, df, gid)
+            print(f"Uploaded: {doc}")
         display = window.evaluate_js("""
                                      document.getElementById('done_flag').innerHTML = 'DONE!!!'
                                      document.getElementById("ready").innerHTML = "Not Ready"
@@ -61,7 +70,7 @@ class Api():
         print(display)
 
 
-    def search_file(self):
+    def search_drive(self):
         """
         Search file in drive location
         """
@@ -94,7 +103,7 @@ class Api():
                     json_str = dumps(files)
                     js_code = f"let json_data = `{json_str}`"
 
-                    with open("lockup_app/drive_search.js", "w+") as outfile:
+                    with open("drive_search.js", "w+") as outfile:
                         outfile.write(js_code)
                     break
 
@@ -107,8 +116,9 @@ if __name__ == '__main__':
     window = webview.create_window('App', 'index.html', js_api=api)
 
     window.events.closed += api.google_deauth
+    window.events.closed += api.delete_search_history
 
-    webview.start(api.search_file, icon="static/ida_b_free_data.png", debug=True)
+    webview.start(api.search_drive, icon="static/ida_b_free_data.png", debug=True)
 
 #TODO add create sheet function
 #TODO comment and add docstrings
