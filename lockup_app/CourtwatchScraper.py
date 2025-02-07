@@ -1,6 +1,6 @@
 import os
 from json import dumps
-import LU_scraper
+import lu_scraper
 import gspread as gs
 import webview
 from google.oauth2 import service_account
@@ -58,8 +58,8 @@ class Api():
 
     def go_extract(self, gid):
         for doc in self.lockup_list:
-            df = LU_scraper.scrape_fulldoc(doc, quiet=False)
-            LU_scraper.append_to_sheet(self.gc, df, gid)
+            df = lu_scraper.scrape_fulldoc(doc, quiet=False)
+            lu_scraper.append_to_sheet(self.gc, df, gid)
             print(f"Uploaded: {doc}")
         display = window.evaluate_js("""
                                      document.getElementById('done_flag').innerHTML = 'DONE!!!'
@@ -122,4 +122,4 @@ if __name__ == '__main__':
 
 #TODO add create sheet function
 #TODO comment and add docstrings
-#TODO add screen to give time for the app shit to load to fix the bug of needing to restart
+#TODO add a function that uploads the lockup lists to a folder, should sort into folder structure lockup list pdfs/{year}/{file}
